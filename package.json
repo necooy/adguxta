@@ -1,0 +1,26 @@
+{
+  "name": "seguranca-items-api",
+  "version": "1.0.0",
+  "description": "Mini sistema web de gerenciamento de itens e aparelhos de segurança",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "jest --forceExit --detectOpenHandles --verbose"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "mongoose": "^8.9.5"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "mongodb-memory-server": "^10.4.0",
+    "supertest": "^7.0.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testTimeout": 30000
+  }
+}

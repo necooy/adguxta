@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Sistema de gerenciamento de itens e aparelhos de segurança. Cadastre, edite e gerencie câmeras, alarmes e equipamentos de segurança." />
+  <title>SecureGuard — Gerenciamento de Itens de Segurança</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- ===== HEADER ===== -->
+  <header class="header" id="header">
+    <div class="header__container">
+      <div class="header__brand">
+        <div class="header__logo">
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M18 3L31 10V18C31 25.18 25.45 31.86 18 33.5C10.55 31.86 5 25.18 5 18V10L18 3Z" fill="url(#shield-grad)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+            <path d="M15 18L17 20L22 15" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <defs>
+              <linearGradient id="shield-grad" x1="5" y1="3" x2="31" y2="33.5" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#6366F1"/>
+                <stop offset="1" stop-color="#3B82F6"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div>
+          <h1 class="header__title">SecureGuard</h1>
+          <p class="header__subtitle">Itens de Segurança</p>
+        </div>
+      </div>
+      <button class="btn btn--primary btn--glow" id="btn-add-item" aria-label="Adicionar novo item">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 4V16M4 10H16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span>Novo Item</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <main class="main" id="main">
+    <!-- Estado: Carregando -->
+    <div class="state state--loading" id="state-loading">
+      <div class="spinner"></div>
+      <p>Carregando itens...</p>
+    </div>
+
+    <!-- Estado: Erro -->
+    <div class="state state--error hidden" id="state-error">
+      <svg width="56" height="56" viewBox="0 0 56 56" fill="none"><circle cx="28" cy="28" r="26" stroke="#EF4444" stroke-width="2" opacity="0.3"/><path d="M28 18V30M28 36H28.02" stroke="#EF4444" stroke-width="3" stroke-linecap="round"/></svg>
+      <h2>Ops! Algo deu errado</h2>
+      <p id="error-message">Não foi possível conectar à API.</p>
+      <button class="btn btn--outline" id="btn-retry">Tentar novamente</button>
+    </div>
+
+    <!-- Estado: Lista vazia -->
+    <div class="state state--empty hidden" id="state-empty">
+      <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+        <rect x="15" y="20" width="50" height="40" rx="4" stroke="#64748B" stroke-width="2" opacity="0.3"/>
+        <path d="M30 45L37 38L42 43L55 30" stroke="#6366F1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+        <circle cx="33" cy="33" r="3" fill="#6366F1" opacity="0.4"/>
+      </svg>
+      <h2>Nenhum item cadastrado</h2>
+      <p>Comece adicionando seu primeiro equipamento de segurança.</p>
+      <button class="btn btn--primary" id="btn-add-first">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 4V16M4 10H16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span>Adicionar Primeiro Item</span>
+      </button>
+    </div>
+
+    <!-- Grid de Cards -->
+    <div class="items-grid hidden" id="items-grid"></div>
+  </main>
+
+  <!-- ===== MODAL DE FORMULÁRIO ===== -->
+  <div class="modal-overlay hidden" id="modal-form-overlay">
+    <div class="modal" id="modal-form" role="dialog" aria-modal="true" aria-labelledby="modal-form-title">
+      <div class="modal__header">
+        <h2 class="modal__title" id="modal-form-title">Novo Item</h2>
+        <button class="modal__close" id="modal-form-close" aria-label="Fechar modal">&times;</button>
+      </div>
+      <form id="item-form" novalidate>
+        <div class="form-group">
+          <label for="input-marca" class="form-label">Marca <span class="required">*</span></label>
+          <input type="text" id="input-marca" name="marca" class="form-input" placeholder="Ex: Intelbras, Hikvision..." required />
+          <span class="form-error" id="error-marca"></span>
+        </div>
+        <div class="form-group">
+          <label for="input-modelo" class="form-label">Modelo <span class="required">*</span></label>
+          <input type="text" id="input-modelo" name="modelo" class="form-input" placeholder="Ex: VHL 1220 D, DS-2CE..." required />
+          <span class="form-error" id="error-modelo"></span>
+        </div>
+        <div class="form-group">
+          <label for="input-preco" class="form-label">Preço (R$) <span class="required">*</span></label>
+          <input type="number" id="input-preco" name="preco" class="form-input" placeholder="Ex: 349.90" min="0" step="0.01" required />
+          <span class="form-error" id="error-preco"></span>
+        </div>
+        <div class="form-group">
+          <label for="input-foto" class="form-label">URL da Foto</label>
+          <input type="url" id="input-foto" name="foto" class="form-input" placeholder="https://exemplo.com/foto.jpg" />
+          <span class="form-error" id="error-foto"></span>
+        </div>
+        <!-- Preview da imagem -->
+        <div class="form-preview" id="form-preview">
+          <img id="preview-img" src="" alt="Preview da imagem" />
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn--ghost" id="btn-cancel-form">Cancelar</button>
+          <button type="submit" class="btn btn--primary" id="btn-submit-form">
+            <span id="btn-submit-text">Salvar Item</span>
+            <div class="btn-spinner hidden" id="btn-submit-spinner"></div>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== MODAL DE CONFIRMAÇÃO ===== -->
+  <div class="modal-overlay hidden" id="modal-confirm-overlay">
+    <div class="modal modal--small" id="modal-confirm" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
+      <div class="modal__header modal__header--danger">
+        <h2 class="modal__title" id="confirm-title">Confirmar Exclusão</h2>
+        <button class="modal__close" id="modal-confirm-close" aria-label="Fechar">&times;</button>
+      </div>
+      <div class="modal__body">
+        <p>Tem certeza que deseja excluir o item <strong id="confirm-item-name"></strong>?</p>
+        <p class="text-muted">Esta ação não pode ser desfeita.</p>
+      </div>
+      <div class="modal__footer">
+        <button class="btn btn--ghost" id="btn-cancel-delete">Cancelar</button>
+        <button class="btn btn--danger" id="btn-confirm-delete">
+          <span id="btn-delete-text">Excluir</span>
+          <div class="btn-spinner hidden" id="btn-delete-spinner"></div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TOAST CONTAINER ===== -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,150 @@
+# Plano de Implementação: Mini Sistema Web de Itens de Segurança
+
+Desenvolvimento de um mini sistema web completo para gerenciamento (CRUD) de itens e aparelhos de segurança (marca, modelo, preço, foto/URL). A solução conta com backend RESTful em Node.js com Express e MongoDB/Mongoose, arquitetado especificamente para execução serverless na Vercel, e frontend desacoplado em HTML5, CSS3 e JavaScript puro (vanilla).
+
+---
+
+## 1. Visão Geral da Arquitetura
+
+O sistema será estruturado com clara separação de responsabilidades:
+- **Backend / API Serverless (`/api`)**:
+  - Node.js + Express.js para manipulação de rotas RESTful.
+  - Mongoose para modelagem, validação e persistência no MongoDB.
+  - Conexão MongoDB com padrão Singleton / Cache de conexão global, evitando esgotamento de sockets em ambiente serverless Vercel.
+  - Validação rigorosa no backend (marca e modelo obrigatórios não-vazios, preço numérico $\ge 0$, validação de formato de URL de imagem).
+  - Middleware centralizado para tratamento de erros HTTP (400, 404, 500) retornando respostas padronizadas em JSON sem vazamento de detalhes internos sensíveis.
+  - Suporte a CORS configurado adequadamente para o frontend.
+- **Frontend Desacoplado (`/frontend`)**:
+  - HTML5 semântico, CSS3 responsivo (mobile-first, tablets e desktops) e JavaScript Vanilla (sem frameworks pesados).
+  - Interface moderna com grid de cartões de segurança, preview e fallback de fotos quebradas/ausentes.
+  - Formulário para criação e edição com validações em tempo real e visualização prévia da imagem.
+  - Modal amigável de confirmação antes de exclusões.
+  - Estados claros de interface: *carregando (loading)*, *lista vazia*, *mensagem de erro* e *notificações de sucesso (toasts)*.
+- **Testes Automatizados e de Integração (`/tests`)**:
+  - Testes com Jest + Supertest e `mongodb-memory-server` para execução rápida, determinística e isolada de todos os endpoints REST (POST, GET, PUT, DELETE) e cenários de validação/erro.
+- **Documentação do Projeto**:
+  - `Roadmap.md`: Plano de execução vivo com checkboxes de progresso.
+  - `Contexto.md`: Documentação arquitetural contínua, histórico de decisões e estado atual.
+  - `api.md`: Documentação técnica com especificações OpenAPI-like e exemplos práticos em `curl`.
+  - `README.md`: Guia de configuração, execução local, testes e instruções de deploy na Vercel.
+  - `.env.example`: Modelo de variáveis de ambiente sem expor credenciais reais.
+
+---
+
+## 2. Estrutura de Diretórios Proposta
+
+```
+/
+├── api/
+│   ├── config/
+│   │   └── db.js              # Conexão com MongoDB otimizada para Serverless (cache)
+│   ├── controllers/
+│   │   └── itemController.js  # Lógica de controle do CRUD
+│   ├── middlewares/
+│   │   ├── errorHandler.js    # Tratamento centralizado de erros
+│   │   └── validator.js       # Validação e sanitização das entradas
+│   ├── models/
+│   │   └── Item.js            # Esquema Mongoose para Itens de Segurança
+│   ├── routes/
+│   │   └── itemRoutes.js      # Definição das rotas REST (/api/items)
+│   ├── app.js                 # Configuração do Express e middlewares
+│   └── index.js               # Handler entrypoint para Vercel Serverless
+├── frontend/
+│   ├── index.html             # Marcação semântica da página
+│   ├── style.css              # Estilos responsivos e tema visual moderno
+│   └── script.js              # Interações DOM, chamadas fetch para API, feedback visual
+├── tests/
+│   └── items.test.js          # Testes automatizados com Supertest e Memory Server
+├── .env.example               # Exemplo de variáveis de ambiente
+├── .gitignore                 # Arquivos ignorados pelo Git
+├── vercel.json                # Configuração de build, roteamento e CORS na Vercel
+├── package.json               # Dependências e scripts de execução/testes
+├── server.js                  # Entrypoint para execução local do servidor
+├── Roadmap.md                 # Documento vivo de progresso
+├── Contexto.md                # Documento vivo de contexto técnico e decisões
+├── api.md                     # Documentação da API com exemplos curl
+└── README.md                  # Documentação principal
+```
+
+---
+
+## 3. Detalhamento dos Componentes
+
+### 3.1. Modelo de Dados (`api/models/Item.js`)
+Campos padronizados em português:
+- `marca`: String, obrigatório, trim, `minlength: 1`
+- `modelo`: String, obrigatório, trim, `minlength: 1`
+- `preco`: Number, obrigatório, `min: 0`
+- `foto`: String, opcional, validação regex para URLs http/https
+- `createdAt` / `updatedAt`: Timestamps automáticos
+
+### 3.2. Endpoints da API REST (`/api/items`)
+- `GET /api/items`: Retorna a lista de itens ordenada pelo mais recente. Status: `200 OK`.
+- `GET /api/items/:id`: Retorna o item pelo ID. Status: `200 OK`, `400 Bad Request` (ID inválido) ou `404 Not Found`.
+- `POST /api/items`: Cria um novo item. Valida campos obrigatórios e tipos. Status: `201 Created` ou `400 Bad Request`.
+- `PUT /api/items/:id`: Atualiza um item existente. Status: `200 OK`, `400 Bad Request` ou `404 Not Found`.
+- `DELETE /api/items/:id`: Remove o item pelo ID. Status: `200 OK` ou `404 Not Found`.
+
+### 3.3. Tratamento de Erros e Segurança
+- Padrão uniforme de respostas de erro:
+  ```json
+  {
+    "error": "Dados inválidos",
+    "message": "O preço deve ser um número maior ou igual a zero."
+  }
+  ```
+- Ocultação de detalhes internos de stack trace em produção.
+- Sanitização de strings para evitar injeções e ataques básicos.
+- Configuração de cabeçalhos de segurança e CORS.
+- Isolamento absoluto de credenciais do MongoDB no `.env`.
+
+### 3.4. Interface Frontend
+- **Design**: Paleta de cores moderna focada em tecnologia e segurança (tons de azul ardósia, cinza neutro e destaques sutis).
+- **Cards de Equipamentos**: Exibe foto centralizada com proporção preservada (`object-fit: cover`), placeholder em caso de falha de carregamento, badges de marca e modelo, preço formatado em moeda brasileira (BRL), botões de editar e excluir com ícones/textos claros.
+- **Formulário / Modal**:
+  - Criação rápida de item ou edição de item existente.
+  - Preview imediato da foto ao digitar a URL.
+  - Validações visuais amigáveis nos inputs.
+- **Modal de Confirmação**: Protege o usuário contra exclusões acidentais.
+- **Estados Visuais**: Loading spinner durante requisições, tela vazia amigável caso não haja itens, banner de erro se a API estiver fora do ar.
+
+---
+
+## 4. Plano de Verificação e Testes
+
+### 4.1. Testes Automatizados
+- Executar `npm test` utilizando Jest + Supertest e `mongodb-memory-server`.
+- **Casos cobertos**:
+  - Criação com dados válidos (201)
+  - Falha na criação por falta de marca, modelo ou preço (400)
+  - Falha na criação com preço negativo ou não numérico (400)
+  - Falha na criação com URL de foto inválida (400)
+  - Listagem vazia e listagem populada (200)
+  - Consulta por ID existente (200), ID inexistente (404) e ID com formato inválido (400)
+  - Atualização completa de item (200), falha com dados inválidos (400) e ID inexistente (404)
+  - Exclusão com sucesso (200) e falha em ID inexistente (404)
+
+### 4.2. Testes Manuais e Validação Ponta a Ponta
+- Iniciar o servidor localmente via `npm start`.
+- Realizar o ciclo completo no navegador:
+  1. Acessar interface no navegador.
+  2. Cadastrar item de teste (ex: Câmera Dome Intelbras).
+  3. Verificar persistência e exibição no grid.
+  4. Editar o preço e a foto do item cadastrado.
+  5. Verificar atualização imediata na interface e na API.
+  6. Excluir o item através do modal de confirmação.
+  7. Verificar o retorno ao estado vazio.
+- Testar chamadas diretas via `curl` documentadas no `api.md`.
+- Validar layout responsivo em resolução mobile (375px), tablet (768px) e desktop (1200px).
+
+---
+
+## 5. Próximos Passos Imediatos após Aprovação
+1. Criar `Roadmap.md` e `Contexto.md` iniciais.
+2. Inicializar `package.json` com as dependências do projeto (`express`, `mongoose`, `dotenv`, `cors`, `jest`, `supertest`, `mongodb-memory-server`).
+3. Configurar `.env.example`, `.gitignore` e `vercel.json`.
+4. Implementar a camada de backend e banco de dados.
+5. Escrever e rodar os testes automatizados da API.
+6. Implementar a interface do frontend (HTML, CSS e JS).
+7. Conectar e validar ponta a ponta.
+8. Gerar a documentação final completa (`api.md` e `README.md`) e atualizar o roadmap e contexto.
